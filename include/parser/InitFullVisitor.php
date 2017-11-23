@@ -12,7 +12,14 @@ class InitFullVisitor
     private $enterCallbackCount = 0;
     private $leaveCallbackList = array();
     private $leaveCallbackCount = 0;
-    function addCallback($addType,$callback,...$callbackArgs){
+    public $codeFile;
+
+    function __construct($codeFile)
+    {
+        $this->codeFile = $codeFile;
+    }
+
+    private function addCallback($addType,$callback,...$callbackArgs){
         $callbackList = $addType."CallbackList";
         $callbackCount = $addType."CallbackCount";
         $this->$callbackList[$this->$callbackCount]["callback"] = $callback;
@@ -21,15 +28,15 @@ class InitFullVisitor
         return $this->$callbackCount-1;
     }
 
-    function addEnterCallback($callback,...$callbackArgs){
+    public function addEnterCallback($callback,...$callbackArgs){
         return $this->addCallback("enter",$callback,$callbackArgs);
     }
 
-    function leaveEnterCallback($callback,...$callbackArgs){
+    public function leaveEnterCallback($callback,...$callbackArgs){
         return $this->addCallback("leave",$callback,$callbackArgs);
     }
 
-    public function removeCallback($removeType,$callbackPos){
+    private function removeCallback($removeType,$callbackPos){
         $callbackList = $removeType."CallbackList";
         unset($this->$callbackList[$callbackPos]);
     }
@@ -42,12 +49,18 @@ class InitFullVisitor
         $this->removeCallback("enter",$callbackPos);
     }
 
-    public function callbackNode($type,PhpParser\Node $node){
+    /**
+     * 将node节点传入回调函数，同时会传入该visitor对象本身，和当前callback的pos
+     * 传入callback的第一个参数为node，第二个为this，第三个为pos
+     * @param $type
+     * @param \PhpParser\Node $node
+     */
+    private function callbackNode($type,PhpParser\Node $node){
         $callbackList = $type."CallbackList";
         $tmpCallbackList = $this->$callbackList;
-        foreach ($tmpCallbackList as $callback){
+        foreach ($tmpCallbackList as $pos => $callback){
             $tmp = $callback["callbackArgs"];
-            array_unshift($tmp,$node);
+            array_unshift($tmp,$node, $this, $pos);
             call_user_func_array($callback["callback"],$tmp);
         }
     }

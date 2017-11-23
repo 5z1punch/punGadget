@@ -32,15 +32,18 @@ class ClassInfoList
     {
         $this->traverser = new PhpParser\NodeTraverser;
     }
-    function stmtScan($nodesArray, $codeFile){
-        $classInfoVisitor = new ClassInfoVisitor();
-        $this->traverser->addVisitor($classInfoVisitor);
-        $this->traverser->traverse($nodesArray);
-        foreach ($classInfoVisitor->classList as $classNode) {
-            $classMagics = new ClassMagics($classNode,$codeFile);
-            array_push($this->classList,$classMagics);
+    function stmtScan(PhpParser\Node $node, ClassMethodVisitor $visitor, $pos){
+        if($node->getType()=="Stmt_Class"){
+            $classMagics = new ClassMagics($node,$visitor->codeFile);
+            $this->magicsList[] = $classMagics;
+            $visitor->addEnterCallback([$classMagics,"parserClass"]);
+            $visitor->removeEnterCallback($pos);
+            $visitor->addLeaveCallback(function($node,$visitor,$pos){
+                $visitor->addEnterCallback([$this,"stmtScan"]);
+                $visitor->removeLeaveCallback($pos);
+                $visitor->removeEnterCallback(end($this->magicsList)->callbackPos);
+            });
         }
-        $this->traverser->removeVisitor($classInfoVisitor);
     }
     // 为了以后 classList 数据结构的更改，直接写一个遍历器
     // callback：回调方法名称

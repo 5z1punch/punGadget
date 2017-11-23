@@ -12,21 +12,24 @@ class ClassMagics
     private $className;
     private $magicFuncList;
     private $codeFile;
+    public $callbackPos;
     private $checkFunc = [ "__construct()", "__destruct()", "__call()", "__callStatic()", "__get()", "__set()", "__isset()", "__unset()", "__sleep()", "__wakeup()", "__toString()", "__invoke()", "__set_state()", "__clone()", "__debugInfo()"];
 
     function __construct(PhpParser\Node $classNode, $codeFile)
     {
         $this->codeFile = $codeFile;
-        $this->parserClass($classNode);
+        $this->className = $classNode->name;
     }
 
-    function parserClass(PhpParser\Node $classNode){
-        $this->className = $classNode->name;
-        $classMethodVisitor = new ClassMethodVisitor($this->checkFunc);
-        $traverser = new PhpParser\NodeTraverser;
-        $traverser->addVisitor($classMethodVisitor);
-        $traverser->traverse($classNode);
-        $this->magicFuncList = $classMethodVisitor->methodStmtsList;
+    function parserClass(PhpParser\Node $node,ClassMethodVisitor $visitor,$pos){
+        if($node->getType()=="Stmt_ClassMethod" && in_array($node->name,$this->checkFunc)) {
+            $this->magicFuncList[$node->name] = $node;
+            $visitor->removeEnterCallback($pos);
+            $visitor->addLeaveCallback(function($node,$visitor,$pos){
+                $this->callbackPos = $visitor->addEnterCallback([$this,"parserClass"]);
+                $visitor->removeLeaveCallback($pos);
+            });
+        }
     }
 
     function getMethod($methodName){
