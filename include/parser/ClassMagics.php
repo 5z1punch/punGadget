@@ -25,10 +25,12 @@ class ClassMagics
         if($node->getType()=="Stmt_ClassMethod" && in_array($node->name,$this->checkFunc)) {
             $this->magicFuncList[$node->name] = $node;
             $visitor->removeEnterCallback($pos);
-            $visitor->addLeaveCallback(function($node,$visitor,$pos){
-                $this->callbackPos = $visitor->addEnterCallback([$this,"parserClass"]);
-                $visitor->removeLeaveCallback($pos);
-            });
+            $visitor->addLeaveCallback(function($node,$visitor,$pos, $leavingNode){
+                if ($node===$leavingNode){
+                    $this->callbackPos = $visitor->addEnterCallback([$this,"parserClass"]);
+                    $visitor->removeLeaveCallback($pos);
+                }
+            }, $node);
         }
     }
 

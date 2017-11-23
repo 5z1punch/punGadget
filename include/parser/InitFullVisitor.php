@@ -32,7 +32,7 @@ class InitFullVisitor extends PhpParser\NodeVisitorAbstract
         return $this->addCallback("enter",$callback,$callbackArgs);
     }
 
-    public function leaveEnterCallback($callback,...$callbackArgs){
+    public function addLeaveCallback($callback,...$callbackArgs){
         return $this->addCallback("leave",$callback,$callbackArgs);
     }
 

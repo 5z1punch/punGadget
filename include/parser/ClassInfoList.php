@@ -38,11 +38,13 @@ class ClassInfoList
             $this->magicsList[] = $classMagics;
             $visitor->addEnterCallback([$classMagics,"parserClass"]);
             $visitor->removeEnterCallback($pos);
-            $visitor->addLeaveCallback(function($node,$visitor,$pos){
-                $visitor->addEnterCallback([$this,"stmtScan"]);
-                $visitor->removeLeaveCallback($pos);
-                $visitor->removeEnterCallback(end($this->magicsList)->callbackPos);
-            });
+            $visitor->addLeaveCallback(function($node,$visitor,$pos,$leavingNode){
+                if ($node===$leavingNode){
+                    $visitor->addEnterCallback([$this,"stmtScan"]);
+                    $visitor->removeLeaveCallback($pos);
+                    $visitor->removeEnterCallback(end($this->magicsList)->callbackPos);
+                }
+            },$node);
         }
     }
     // 为了以后 classList 数据结构的更改，直接写一个遍历器
