@@ -6,7 +6,7 @@
  * Date: 2017/11/22
  * Time: 下午9:24
  */
-class InitFullVisitor
+class InitFullVisitor extends PhpParser\NodeVisitorAbstract
 {
     private $enterCallbackList = array();
     private $enterCallbackCount = 0;
