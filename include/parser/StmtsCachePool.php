@@ -17,9 +17,13 @@ class StmtsCachePool
     public $loadFlag;
     private $projectName;
     private $cacheId;
-    /*
+
+    /**
+     * StmtsCachePool constructor.
      * 初始化方法，如果使用缓存，则加载最近生成的缓存文件；
      * 如果不使用缓存，则新建缓存。
+     * @param $useCache
+     * @param $projectName
      */
     function __construct($useCache, $projectName){
         $this->projectName = $projectName;
@@ -33,7 +37,11 @@ class StmtsCachePool
         }
     }
 
-    // 为一个文件建立索引，并存储其序列化的ast树
+    /**
+     * 为一个文件建立索引，并存储其序列化的ast树
+     * @param $fileName
+     * @param $stmts
+     */
     function pushStmts($fileName,$stmts){
         $hash = $this->cacheId;
         $this->hashTable[$fileName] = $hash;
@@ -41,7 +49,11 @@ class StmtsCachePool
         file_put_contents($this->baseDir.$this->cacheDirName.'/'.$hash,serialize($stmts));
     }
 
-    // 获取某文件的ast树对象
+    /**
+     * 获取某文件的ast树对象
+     * @param $fileName
+     * @return bool|mixed
+     */
     function getStmts($fileName){
         if(isset($this->hashTable[$fileName])){
             return unserialize(file_get_contents($this->baseDir.$this->cacheDirName.'/'.$this->hashTable[$fileName]));
@@ -51,21 +63,27 @@ class StmtsCachePool
         }
     }
 
-    // 析构时自动存储hash表，此处可能存在对象注入的潜在隐患，不管了
+    /**
+     * 析构时自动存储hash表，此处可能存在对象注入的潜在隐患，不管了
+     */
     function __destruct(){
         $this->saveHashTable();
     }
 
-    // 存储 hash 表到当前缓存目录 ： hashTable
+    /**
+     * 存储 hash 表到当前缓存目录 ： hashTable
+     */
     function saveHashTable(){
         $saveFile = $this->baseDir.$this->cacheDirName.'/hashTable';
         file_put_contents($saveFile,serialize($this->hashTable));
     }
 
-    // 分解缓存一级目录名，得到工程名和缓存的时间戳
-    // 分解临时存储目录的目录名为 工程名@时间戳 的形式
-    // input: dirname
-    // output: array("projectName":string, "time": int )
+    /**
+     * 分解缓存一级目录名，得到工程名和缓存的时间戳
+     * 分解临时存储目录的目录名为 工程名@时间戳 的形式
+     * @param $dirname
+     * @return array // string "projectName" , int "time"
+     */
     function getNameAndTime($dirname){
         $dirParser = explode('@',$dirname);
         $time = array_slice($dirParser,-1);
@@ -78,8 +96,10 @@ class StmtsCachePool
         ];
     }
 
-
-    // 从 cache 目录查询出最新一次缓存，并反序列化为stmts数据
+    /**
+     * 从 cache 目录查询出最新一次缓存，并反序列化为stmts数据
+     * @return bool
+     */
     function loadLastCache(){
         /*
         * todo

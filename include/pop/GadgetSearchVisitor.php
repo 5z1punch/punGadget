@@ -13,6 +13,7 @@ class GadgetSearchVisitor extends PhpParser\NodeVisitorAbstract
     // $foundMarker 的节点细节里，感觉只存文件名、类名和行号比较好
     public $foundMarker = array();
     private $svarFlag = null;
+    const SVAR_SET = 1;
 
     /**
      * 定义源变量，从此变量开始查找传播路径
@@ -27,6 +28,8 @@ class GadgetSearchVisitor extends PhpParser\NodeVisitorAbstract
 
     /**
      * 判断一个节点是不是来自源变量
+     * todo 源变量的范围如何判定
+     * todo 表达式计算
      * @param \PhpParser\Node $node
      * @return bool
      */
@@ -54,30 +57,27 @@ class GadgetSearchVisitor extends PhpParser\NodeVisitorAbstract
      * @param \PhpParser\Node $node
      */
     public function set1get(PhpParser\Node $node){
-        if(
-            $node->getType()=="Stmt_Foreach"
-            and (
-                $this->fetchStruct($node->keyVar,True)
-                or $this->fetchStruct($node->valueVar,True)
-            )
-        ){
-            // todo 如何处理 set 和 get
-            $this->foundMarker["__set"];
-        }
-        elseif($node->getType()=="Expr_Assign" and $this->fetchStruct($node->var,True)){
-            $this->svarFlag = self::SVAR_SET;
-            $this->svarCheckNode = $node->var;
-        }
-        elseif($node->getType()=="Expr_FuncCall"){
-            // TODO
-            /**
-             * 目前仅仅处理preg_match
-             */
-            if($node->name->parts[0]=="preg_match" and $this->fetchStruct($node->args[2]->vaule,True)){
-                $this->svarFlag = self::SVAR_SET;
-                $this->svarCheckNode = $node->args[2];
+        if( $node->getType()=="Stmt_Foreach" ){
+            if($this->fetchStruct($node->keyVar,True)){
+                $node->keyVar->setAttribute("ifSet",self::SVAR_SET);
+            }
+            if( $this->fetchStruct($node->valueVar,True) ){
+                $node->valueVar->setAttribute("ifSet",self::SVAR_SET);
             }
         }
+        elseif($node->getType()=="Expr_Assign" and $this->fetchStruct($node->var,True)){
+            $node->var->setAttribute("ifSet",self::SVAR_SET);
+        }
+        // TODO 函数调用会触发 __set 吗？
+//        elseif($node->getType()=="Expr_FuncCall"){
+//            /**
+//             * 目前仅仅处理preg_match
+//             */
+//            if($node->name->parts[0]=="preg_match" and $this->fetchStruct($node->args[2]->vaule,True)){
+//                $this->svarFlag = self::SVAR_SET;
+//                $this->svarCheckNode = $node->args[2];
+//            }
+//        }
     }
 
     /**
@@ -147,13 +147,55 @@ class GadgetSearchVisitor extends PhpParser\NodeVisitorAbstract
         }
         elseif($node->getType()=="Expr_PropertyFetch"){
             if ($this->fetchStruct($node->var)){
-                if ($this->svarFlag === self::SVAR_SET){
+                if ($node->getAttribute("ifSet")===self::SVAR_SET){
                     $this->foundMarker["__set"][] = $node;
                 }
                 else{
                     $this->foundMarker["__get"][] = $node;
                 }
             }
+        }
+        elseif ($node->getType()=="Expr_Isset"){
+            foreach ($node->vars as $var){
+                if($this->fetchStruct($var)){
+                    $this->foundMarker["__isset"][] = $var;
+                }
+            }
+        }
+        elseif ($node->getType()=="Expr_Empty"){
+            if($this->fetchStruct($node->expr)){
+                $this->foundMarker["__isset"][] = $node;
+            }
+        }
+        elseif ($node->getType()=="Stmt_Unset"){
+            foreach ($node->vars as $var){
+                if($this->fetchStruct($var)){
+                    $this->foundMarker["__unset"][] = $var;
+                }
+            }
+        }
+        elseif (
+            $node->getType()=="Expr_FuncCall"
+            and $node->name->parts[0]=="serialize"
+            and $this->fetchStruct($node->args[0]->value)
+        ){
+            $this->foundMarker["__sleep"][] = $node;
+        }
+        // todo __string
+        elseif ($node->getType()=="Expr_BinaryOp_Concat"){
+            // todo 表达式计算
+        }
+        elseif ($node->getType()=="Stmt_Echo"){
+            // todo
+        }
+        elseif ($node->getType()=="Expr_Print"){
+            // todo
+        }
+        elseif ($node->getType()=="Expr_Exit"){
+            // todo
+        }
+        elseif ($node->getType()=="Expr_FuncCall"){
+            // todo
         }
     }
 }

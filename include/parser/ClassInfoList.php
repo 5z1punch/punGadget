@@ -27,16 +27,20 @@ class ClassInfoList
         "__clone"=>array(),
         "__debugInfo"=>array()
     );
-    private $traverser;
-    function __construct()
-    {
-        $this->traverser = new PhpParser\NodeTraverser;
-    }
+
+    /**
+     * 回调函数，将当前class加入到队列中，
+     * 并且添加识别魔术方法的回调函数。
+     * @param \PhpParser\Node $node
+     * @param ClassMethodVisitor $visitor
+     * @param $pos
+     */
     function stmtScan(PhpParser\Node $node, ClassMethodVisitor $visitor, $pos){
         if($node->getType()=="Stmt_Class"){
             $classMagics = new ClassMagics($node,$visitor->codeFile);
             $this->magicsList[] = $classMagics;
             $visitor->addEnterCallback([$classMagics,"parserClass"]);
+            // 在处理完之后清楚自身，并且在退出当前节点时再添加自身。
             $visitor->removeEnterCallback($pos);
             $visitor->addLeaveCallback(function($node,$visitor,$pos,$leavingNode){
                 if ($node===$leavingNode){
@@ -47,17 +51,25 @@ class ClassInfoList
             },$node);
         }
     }
-    // 为了以后 classList 数据结构的更改，直接写一个遍历器
-    // callback：回调方法名称
+
+    /**
+     * 为了以后 classList 数据结构的更改，直接写一个遍历器
+     * @param $callback // 回调方法名称
+     * @param array ...$callbackArgs
+     */
     function ergodicClassList($callback,...$callbackArgs)
     {
         foreach ($this->classList as $classMagics) {
             $callback($classMagics,...$callbackArgs);
         }
     }
-    // 查询包含有某一魔术方法的类
-    // 在第一次查询某方法时，将结果保存在$magicsList属性中，下次查询时直接从属性中获得
-    // string: funcName 要搜索的魔术方法名
+
+    /**
+     * 查询包含有某一魔术方法的类
+     * 在第一次查询某方法时，将结果保存在$magicsList属性中，下次查询时直接从属性中获得
+     * @param $funcName //要搜索的魔术方法名
+     * @return mixed|null
+     */
     function getClassByMagicFuncName($funcName){
         if(isset($this->magicsList[$funcName]) && !is_null($this->magicsList[$funcName])){
             if($this->magicsList[$funcName]){
